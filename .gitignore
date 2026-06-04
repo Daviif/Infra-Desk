@@ -1,0 +1,15 @@
+# Dependencies
+node_modules/
+
+# Build output
+.next/
+out/
+
+# Database (keep data/ in git if you want backups, or ignore it)
+data/
+
+# Misc
+.env
+.env.local
+.DS_Store
+*.log
