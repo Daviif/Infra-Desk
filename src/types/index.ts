@@ -4,6 +4,8 @@ export interface Client {
   city: string | null;
   contact: string | null;
   notes: string | null;
+  document_type: string | null;
+  document: string | null;
   created_at: string;
 }
 
