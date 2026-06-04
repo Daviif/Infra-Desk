@@ -1,9 +1,9 @@
-import { TICKET_STATUS } from "@/types";
+import { TICKET_STATUS, EQUIPMENT_STATUS } from "@/types";
 
-type Status = keyof typeof TICKET_STATUS;
+const ALL_STATUS = { ...TICKET_STATUS, ...EQUIPMENT_STATUS };
 
 export default function StatusBadge({ status }: { status: string }) {
-  const s = TICKET_STATUS[status as Status] ?? {
+  const s = ALL_STATUS[status as keyof typeof ALL_STATUS] ?? {
     label: status,
     color: "bg-gray-100 text-gray-700",
   };

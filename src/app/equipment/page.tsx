@@ -156,19 +156,7 @@ export default function EquipmentPage() {
                         {eq.client_name || "-"}
                       </td>
                       <td className="px-6 py-3">
-                        <StatusBadge
-                          status={eq.status as any}
-                          colors={
-                            eq.status === "ativo"
-                              ? "bg-green-100 text-green-800"
-                              : eq.status === "inativo"
-                              ? "bg-gray-100 text-gray-800"
-                              : "bg-yellow-100 text-yellow-800"
-                          }
-                        >
-                          {EQUIPMENT_STATUS[eq.status as keyof typeof EQUIPMENT_STATUS]?.label ||
-                            eq.status}
-                        </StatusBadge>
+                        <StatusBadge status={eq.status} />
                       </td>
                       <td className="px-6 py-3 text-sm">
                         <Link
