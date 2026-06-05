@@ -1,4 +1,4 @@
-import db from "@/lib/db";
+import pool from "@/lib/db";
 import Link from "next/link";
 import StatusBadge from "@/components/StatusBadge";
 import { Ticket } from "@/types";
@@ -14,27 +14,26 @@ function StatCard({ label, value, href }: { label: string; value: number; href: 
   );
 }
 
-export default function Dashboard() {
-  const totalClients = (db.prepare("SELECT COUNT(*) as n FROM clients").get() as { n: number }).n;
-  const openTickets = (
-    db.prepare("SELECT COUNT(*) as n FROM tickets WHERE status != 'resolvido'").get() as { n: number }
-  ).n;
-  const resolvedMonth = (
-    db
-      .prepare(
-        "SELECT COUNT(*) as n FROM tickets WHERE status = 'resolvido' AND strftime('%Y-%m', date) = strftime('%Y-%m', 'now')"
-      )
-      .get() as { n: number }
-  ).n;
-  const totalEquipment = (db.prepare("SELECT COUNT(*) as n FROM equipment").get() as { n: number }).n;
-
-  const recentTickets = db
-    .prepare(
+export default async function Dashboard() {
+  const [
+    { rows: [{ n: totalClients }] },
+    { rows: [{ n: openTickets }] },
+    { rows: [{ n: resolvedMonth }] },
+    { rows: [{ n: totalEquipment }] },
+    { rows: recentTickets },
+  ] = await Promise.all([
+    pool.query("SELECT COUNT(*)::int as n FROM clients"),
+    pool.query("SELECT COUNT(*)::int as n FROM tickets WHERE status != 'resolvido'"),
+    pool.query(
+      "SELECT COUNT(*)::int as n FROM tickets WHERE status = 'resolvido' AND LEFT(date, 7) = TO_CHAR(CURRENT_DATE, 'YYYY-MM')"
+    ),
+    pool.query("SELECT COUNT(*)::int as n FROM equipment"),
+    pool.query(
       `SELECT t.*, c.name as client_name FROM tickets t
        LEFT JOIN clients c ON t.client_id = c.id
        ORDER BY t.date DESC, t.id DESC LIMIT 8`
-    )
-    .all() as Ticket[];
+    ),
+  ]);
 
   return (
     <div className="max-w-5xl">
@@ -54,7 +53,7 @@ export default function Dashboard() {
         </Link>
       </div>
 
-      {recentTickets.length === 0 ? (
+      {(recentTickets as Ticket[]).length === 0 ? (
         <div className="bg-white rounded-xl border border-gray-200 p-10 text-center text-gray-400">
           Nenhum chamado ainda.{" "}
           <Link href="/tickets/new" className="text-blue-600 hover:underline">
@@ -73,7 +72,7 @@ export default function Dashboard() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {recentTickets.map((t) => (
+              {(recentTickets as Ticket[]).map((t) => (
                 <tr key={t.id} className="hover:bg-gray-50">
                   <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{t.date}</td>
                   <td className="px-4 py-3 font-medium">

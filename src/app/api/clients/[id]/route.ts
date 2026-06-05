@@ -1,20 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import db from "@/lib/db";
+import pool from "@/lib/db";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const client = db.prepare("SELECT * FROM clients WHERE id = ?").get(id);
-  if (!client) return NextResponse.json({ error: "Não encontrado" }, { status: 404 });
 
-  const equipment = db
-    .prepare("SELECT * FROM equipment WHERE client_id = ? ORDER BY type, brand")
-    .all(id);
+  const { rows: clientRows } = await pool.query("SELECT * FROM clients WHERE id = $1", [id]);
+  if (!clientRows[0]) return NextResponse.json({ error: "Não encontrado" }, { status: 404 });
 
-  const tickets = db
-    .prepare("SELECT * FROM tickets WHERE client_id = ? ORDER BY date DESC, id DESC")
-    .all(id);
+  const [{ rows: equipment }, { rows: tickets }] = await Promise.all([
+    pool.query("SELECT * FROM equipment WHERE client_id = $1 ORDER BY type, brand", [id]),
+    pool.query("SELECT * FROM tickets WHERE client_id = $1 ORDER BY date DESC, id DESC", [id]),
+  ]);
 
-  return NextResponse.json({ ...client as object, equipment, tickets });
+  return NextResponse.json({ ...clientRows[0], equipment, tickets });
 }
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -26,22 +24,17 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     return NextResponse.json({ error: "Nome é obrigatório" }, { status: 400 });
   }
 
-  db.prepare("UPDATE clients SET name=?, city=?, contact=?, notes=?, document_type=?, document=? WHERE id=?").run(
-    name.trim(),
-    city || null,
-    contact || null,
-    notes || null,
-    document_type || null,
-    document || null,
-    id
+  const { rows } = await pool.query(
+    `UPDATE clients SET name=$1, city=$2, contact=$3, notes=$4, document_type=$5, document=$6
+     WHERE id=$7 RETURNING *`,
+    [name.trim(), city || null, contact || null, notes || null, document_type || null, document || null, id]
   );
 
-  const client = db.prepare("SELECT * FROM clients WHERE id = ?").get(id);
-  return NextResponse.json(client);
+  return NextResponse.json(rows[0]);
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  db.prepare("DELETE FROM clients WHERE id = ?").run(id);
+  await pool.query("DELETE FROM clients WHERE id = $1", [id]);
   return NextResponse.json({ ok: true });
 }

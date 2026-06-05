@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import db from "@/lib/db";
+import pool from "@/lib/db";
 
 const TICKET_SELECT = `
   SELECT t.*, c.name as client_name,
@@ -23,9 +23,9 @@ function formatElapsed(startIso: string): string {
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const ticket = db.prepare(TICKET_SELECT + " WHERE t.id = ?").get(id);
-  if (!ticket) return NextResponse.json({ error: "Não encontrado" }, { status: 404 });
-  return NextResponse.json(ticket);
+  const { rows } = await pool.query(TICKET_SELECT + " WHERE t.id = $1", [id]);
+  if (!rows[0]) return NextResponse.json({ error: "Não encontrado" }, { status: 404 });
+  return NextResponse.json(rows[0]);
 }
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -37,43 +37,32 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     return NextResponse.json({ error: "date e problem são obrigatórios" }, { status: 400 });
   }
 
-  // Auto-calculate time_spent when closing the ticket for the first time
   let time_spent: string | null = null;
   if (status === "resolvido") {
-    const existing = db
-      .prepare("SELECT created_at, status, time_spent FROM tickets WHERE id = ?")
-      .get(id) as { created_at: string; status: string; time_spent: string | null } | undefined;
-    if (existing) {
-      if (existing.time_spent) {
-        time_spent = existing.time_spent;
-      } else {
-        time_spent = formatElapsed(existing.created_at);
-      }
+    const { rows: existing } = await pool.query(
+      "SELECT created_at, status, time_spent FROM tickets WHERE id = $1",
+      [id]
+    );
+    if (existing[0]) {
+      time_spent = existing[0].time_spent || formatElapsed(existing[0].created_at);
     }
   }
 
-  db.prepare(
-    `UPDATE tickets SET client_id=?, equipment_id=?, date=?, problem=?, solution=?, status=?,
-     time_spent=?, technician=?, tags=? WHERE id=?`
-  ).run(
-    client_id || null,
-    equipment_id || null,
-    date,
-    problem.trim(),
-    solution || null,
-    status || "aberto",
-    time_spent,
-    technician || null,
-    tags || null,
-    id
+  await pool.query(
+    `UPDATE tickets SET client_id=$1, equipment_id=$2, date=$3, problem=$4, solution=$5,
+     status=$6, time_spent=$7, technician=$8, tags=$9 WHERE id=$10`,
+    [
+      client_id || null, equipment_id || null, date, problem.trim(),
+      solution || null, status || "aberto", time_spent, technician || null, tags || null, id,
+    ]
   );
 
-  const ticket = db.prepare(TICKET_SELECT + " WHERE t.id = ?").get(id);
-  return NextResponse.json(ticket);
+  const { rows } = await pool.query(TICKET_SELECT + " WHERE t.id = $1", [id]);
+  return NextResponse.json(rows[0]);
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  db.prepare("DELETE FROM tickets WHERE id = ?").run(id);
+  await pool.query("DELETE FROM tickets WHERE id = $1", [id]);
   return NextResponse.json({ ok: true });
 }

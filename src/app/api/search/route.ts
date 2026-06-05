@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import db from "@/lib/db";
+import pool from "@/lib/db";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -11,31 +11,28 @@ export async function GET(req: NextRequest) {
 
   const like = `%${q}%`;
 
-  const clients = db
-    .prepare(
+  const [{ rows: clients }, { rows: tickets }, { rows: equipment }] = await Promise.all([
+    pool.query(
       `SELECT id, name, city, contact FROM clients
-       WHERE name LIKE ? OR city LIKE ? OR contact LIKE ? OR notes LIKE ?
-       LIMIT 10`
-    )
-    .all(like, like, like, like);
-
-  const tickets = db
-    .prepare(
+       WHERE name ILIKE $1 OR city ILIKE $1 OR contact ILIKE $1 OR notes ILIKE $1
+       LIMIT 10`,
+      [like]
+    ),
+    pool.query(
       `SELECT t.id, t.date, t.problem, t.solution, t.status, c.name as client_name
        FROM tickets t LEFT JOIN clients c ON t.client_id = c.id
-       WHERE t.problem LIKE ? OR t.solution LIKE ? OR t.tags LIKE ?
-       ORDER BY t.date DESC LIMIT 20`
-    )
-    .all(like, like, like);
-
-  const equipment = db
-    .prepare(
+       WHERE t.problem ILIKE $1 OR t.solution ILIKE $1 OR t.tags ILIKE $1
+       ORDER BY t.date DESC LIMIT 20`,
+      [like]
+    ),
+    pool.query(
       `SELECT e.id, e.type, e.brand, e.model, e.serial, c.name as client_name, c.id as client_id
        FROM equipment e LEFT JOIN clients c ON e.client_id = c.id
-       WHERE e.type LIKE ? OR e.brand LIKE ? OR e.model LIKE ? OR e.serial LIKE ? OR e.notes LIKE ?
-       LIMIT 10`
-    )
-    .all(like, like, like, like, like);
+       WHERE e.type ILIKE $1 OR e.brand ILIKE $1 OR e.model ILIKE $1 OR e.serial ILIKE $1 OR e.notes ILIKE $1
+       LIMIT 10`,
+      [like]
+    ),
+  ]);
 
   return NextResponse.json({ clients, tickets, equipment });
 }
