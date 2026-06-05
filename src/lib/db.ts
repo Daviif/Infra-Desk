@@ -5,10 +5,15 @@ import { setDefaultResultOrder } from "dns";
 setDefaultResultOrder("ipv4first");
 
 // max:3 evita estourar o limite de conexões em ambiente serverless (Vercel)
+const connectionString = process.env.DATABASE_URL ?? "";
+const isPooler = connectionString.includes("pooler.supabase.com");
+
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString,
   ssl: { rejectUnauthorized: false },
   max: 3,
+  // pgBouncer transaction mode não suporta prepared statements
+  ...(isPooler && { statement_timeout: 0 }),
 });
 
 export default pool;
