@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { Equipment, EquipmentDriver, EquipmentConfig, EQUIPMENT_TYPES, EQUIPMENT_STATUS, EQUIPMENT_CONFIG_TYPES } from "@/types";
+import { Equipment, EquipmentDriver, EquipmentConfig, MachineMetric, DiskInfo, EQUIPMENT_TYPES, EQUIPMENT_STATUS, EQUIPMENT_CONFIG_TYPES } from "@/types";
 import StatusBadge from "@/components/StatusBadge";
 import Toast from "@/components/Toast";
 
@@ -14,10 +14,13 @@ export default function EquipmentDetailPage() {
   const [equipment, setEquipment] = useState<Equipment | null>(null);
   const [configs, setConfigs] = useState<EquipmentConfig[]>([]);
   const [drivers, setDrivers] = useState<EquipmentDriver[]>([]);
+  const [latestMetric, setLatestMetric] = useState<MachineMetric | null>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showToken, setShowToken] = useState(false);
+  const [generatingToken, setGeneratingToken] = useState(false);
 
   const [formData, setFormData] = useState({
     type: "",
@@ -33,6 +36,8 @@ export default function EquipmentDetailPage() {
     remote_access: "",
     remote_access_password: "",
     notes: "",
+    maintenance_interval_days: "" as string,
+    last_maintenance_date: "",
   });
 
   const [newDriver, setNewDriver] = useState({ name: "", version: "", url: "", notes: "", installed_date: "" });
@@ -54,6 +59,7 @@ export default function EquipmentDetailPage() {
       setEquipment(data);
       setConfigs(data.configs || []);
       setDrivers(data.drivers || []);
+      setLatestMetric(data.latest_metric ?? null);
       setFormData({
         type: data.type || "",
         brand: data.brand || "",
@@ -68,6 +74,8 @@ export default function EquipmentDetailPage() {
         remote_access: data.remote_access || "",
         remote_access_password: data.remote_access_password || "",
         notes: data.notes || "",
+        maintenance_interval_days: data.maintenance_interval_days?.toString() || "",
+        last_maintenance_date: data.last_maintenance_date?.slice(0, 10) || "",
       });
     } catch (err) {
       console.error("Erro ao buscar equipamento:", err);
@@ -289,6 +297,39 @@ export default function EquipmentDetailPage() {
     } catch (err) {
       console.error("Erro:", err);
       showToast("Erro ao deletar equipamento", "error");
+    }
+  };
+
+  const handleGenerateToken = async () => {
+    if (!confirm("Gerar um novo token vai invalidar o script anterior. Continuar?")) return;
+    setGeneratingToken(true);
+    try {
+      await fetch(`/api/equipment/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...formData, configs: configs.map(c=>({type:c.config_type,key:c.config_key,value:c.config_value})), drivers: drivers.map(d=>({id:d.id,name:d.driver_name,version:d.driver_version,url:d.driver_url,notes:d.notes,installed_date:d.installed_date})), generate_token: true }),
+      });
+      fetchEquipment();
+      showToast("Novo token gerado!");
+    } catch {
+      showToast("Erro ao gerar token", "error");
+    } finally {
+      setGeneratingToken(false);
+    }
+  };
+
+  const handleRegisterMaintenance = async () => {
+    const today = new Date().toISOString().slice(0, 10);
+    try {
+      await fetch(`/api/equipment/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...formData, last_maintenance_date: today, configs: configs.map(c=>({type:c.config_type,key:c.config_key,value:c.config_value})), drivers: drivers.map(d=>({id:d.id,name:d.driver_name,version:d.driver_version,url:d.driver_url,notes:d.notes,installed_date:d.installed_date})) }),
+      });
+      fetchEquipment();
+      showToast("Manutenção registrada para hoje!");
+    } catch {
+      showToast("Erro ao registrar manutenção", "error");
     }
   };
 
@@ -537,6 +578,25 @@ export default function EquipmentDetailPage() {
                 </div>
               </div>
 
+              {/* MANUTENÇÃO PREVENTIVA */}
+              <div>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Manutenção preventiva</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Intervalo (dias)</label>
+                    <input type="number" name="maintenance_interval_days" value={formData.maintenance_interval_days}
+                      onChange={handleInputChange} min={1} placeholder="Ex: 90"
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Última manutenção</label>
+                    <input type="date" name="last_maintenance_date" value={formData.last_maintenance_date}
+                      onChange={handleInputChange}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  </div>
+                </div>
+              </div>
+
               {/* NOTAS GERAIS */}
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1">Notas gerais</label>
@@ -664,7 +724,7 @@ export default function EquipmentDetailPage() {
               </div>
             )}
 
-            <div className="bg-white rounded-lg shadow-md p-6">
+            <div className="bg-white rounded-lg shadow-md p-6 mb-6">
               <h2 className="text-base font-semibold text-gray-800 mb-4">Drivers</h2>
               {drivers.length === 0 ? (
                 <p className="text-gray-400 text-sm">Nenhum driver cadastrado.</p>
@@ -680,13 +740,181 @@ export default function EquipmentDetailPage() {
                         </p>
                       )}
                       {driver.installed_date && (
-                        <p className="text-sm text-gray-600">
-                          Instalado em: {new Date(driver.installed_date).toLocaleDateString("pt-BR")}
-                        </p>
+                        <p className="text-sm text-gray-600">Instalado em: {new Date(driver.installed_date).toLocaleDateString("pt-BR")}</p>
                       )}
                       {driver.notes && <p className="text-sm text-gray-600 mt-1">{driver.notes}</p>}
                     </div>
                   ))}
+                </div>
+              )}
+            </div>
+
+            {/* ── Manutenção preventiva ── */}
+            <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-base font-semibold text-gray-800">Manutenção preventiva</h2>
+                {equipment.maintenance_interval_days && (
+                  <button onClick={handleRegisterMaintenance}
+                    className="text-sm bg-green-600 text-white px-3 py-1.5 rounded-lg hover:bg-green-700">
+                    Registrar manutenção hoje
+                  </button>
+                )}
+              </div>
+              {equipment.maintenance_interval_days ? (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <span className="text-gray-500 text-sm">Intervalo</span>
+                    <p className="font-medium text-gray-900">A cada {equipment.maintenance_interval_days} dias</p>
+                  </div>
+                  <div>
+                    <span className="text-gray-500 text-sm">Última manutenção</span>
+                    <p className="font-medium text-gray-900">
+                      {equipment.last_maintenance_date
+                        ? new Date(equipment.last_maintenance_date).toLocaleDateString("pt-BR")
+                        : <span className="text-red-500">Nunca realizada</span>}
+                    </p>
+                  </div>
+                  <div className="col-span-2">
+                    <span className="text-gray-500 text-sm">Próxima manutenção</span>
+                    {(() => {
+                      if (!equipment.last_maintenance_date) return <p className="font-medium text-red-600">Imediata</p>;
+                      const last = new Date(equipment.last_maintenance_date);
+                      const next = new Date(last);
+                      next.setDate(next.getDate() + equipment.maintenance_interval_days!);
+                      const days = Math.ceil((next.getTime() - Date.now()) / 86400000);
+                      return (
+                        <p className={`font-medium ${days < 0 ? "text-red-600" : days <= 7 ? "text-orange-600" : "text-green-700"}`}>
+                          {next.toLocaleDateString("pt-BR")} {days < 0 ? `(${Math.abs(days)}d atrasada)` : days === 0 ? "(hoje)" : `(em ${days}d)`}
+                        </p>
+                      );
+                    })()}
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-gray-400">
+                  Nenhum intervalo configurado.{" "}
+                  <button onClick={() => setEditing(true)} className="text-blue-600 hover:underline">Configurar agora</button>
+                </p>
+              )}
+            </div>
+
+            {/* ── Monitoramento ao vivo ── */}
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <h2 className="text-base font-semibold text-gray-800 mb-4">Monitoramento ao vivo</h2>
+
+              {equipment.monitoring_token ? (
+                <>
+                  {latestMetric ? (
+                    <div className="mb-4">
+                      <p className="text-xs text-gray-400 mb-3">
+                        Último reporte: {new Date(latestMetric.reported_at).toLocaleString("pt-BR")}
+                        {latestMetric.hostname && ` — ${latestMetric.hostname}`}
+                        {latestMetric.ip_local && ` (${latestMetric.ip_local})`}
+                      </p>
+                      <div className="grid grid-cols-2 gap-3">
+                        {/* RAM */}
+                        {latestMetric.ram_total_gb != null && (
+                          <div className="bg-gray-50 rounded-lg p-3">
+                            <p className="text-xs text-gray-500 mb-1">RAM</p>
+                            <div className="flex items-center gap-2">
+                              <div className="flex-1 bg-gray-200 rounded-full h-2">
+                                <div
+                                  className={`h-2 rounded-full ${
+                                    (latestMetric.ram_used_gb! / latestMetric.ram_total_gb!) * 100 > 90
+                                      ? "bg-red-500" : "bg-blue-500"
+                                  }`}
+                                  style={{ width: `${Math.min(100, (latestMetric.ram_used_gb! / latestMetric.ram_total_gb!) * 100)}%` }}
+                                />
+                              </div>
+                              <span className="text-xs font-medium whitespace-nowrap">
+                                {latestMetric.ram_used_gb}GB / {latestMetric.ram_total_gb}GB
+                              </span>
+                            </div>
+                          </div>
+                        )}
+                        {/* Uptime */}
+                        {latestMetric.uptime_hours != null && (
+                          <div className="bg-gray-50 rounded-lg p-3">
+                            <p className="text-xs text-gray-500 mb-1">Uptime</p>
+                            <p className="text-sm font-medium text-gray-800">
+                              {latestMetric.uptime_hours >= 24
+                                ? `${Math.floor(latestMetric.uptime_hours / 24)}d ${Math.floor(latestMetric.uptime_hours % 24)}h`
+                                : `${latestMetric.uptime_hours}h`}
+                            </p>
+                          </div>
+                        )}
+                        {/* OS */}
+                        {latestMetric.os_version && (
+                          <div className="bg-gray-50 rounded-lg p-3 col-span-2">
+                            <p className="text-xs text-gray-500 mb-1">Sistema Operacional</p>
+                            <p className="text-sm font-medium text-gray-800">{latestMetric.os_version}</p>
+                          </div>
+                        )}
+                        {/* Discos */}
+                        {latestMetric.disk_usage_json && (() => {
+                          const disks: DiskInfo[] = JSON.parse(latestMetric.disk_usage_json);
+                          return disks.map(disk => (
+                            <div key={disk.drive} className="bg-gray-50 rounded-lg p-3">
+                              <p className="text-xs text-gray-500 mb-1">Disco {disk.drive}</p>
+                              <div className="flex items-center gap-2">
+                                <div className="flex-1 bg-gray-200 rounded-full h-2">
+                                  <div
+                                    className={`h-2 rounded-full ${disk.percent >= 95 ? "bg-red-500" : disk.percent >= 85 ? "bg-orange-400" : "bg-green-500"}`}
+                                    style={{ width: `${Math.min(100, disk.percent)}%` }}
+                                  />
+                                </div>
+                                <span className="text-xs font-medium whitespace-nowrap">
+                                  {disk.percent}% ({disk.free_gb}GB livres)
+                                </span>
+                              </div>
+                            </div>
+                          ));
+                        })()}
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-400 mb-4">Nenhuma métrica recebida ainda. Instale o agente na máquina.</p>
+                  )}
+
+                  <div className="border-t border-gray-100 pt-4 space-y-3">
+                    <div>
+                      <p className="text-xs text-gray-500 mb-1">Token do agente</p>
+                      <div className="flex items-center gap-2">
+                        <code className="text-xs bg-gray-100 px-2 py-1 rounded font-mono flex-1 overflow-hidden text-ellipsis">
+                          {showToken ? equipment.monitoring_token : "••••••••-••••-••••-••••-••••••••••••"}
+                        </code>
+                        <button onClick={() => setShowToken(v => !v)} className="text-xs text-blue-600 hover:underline whitespace-nowrap">
+                          {showToken ? "Ocultar" : "Mostrar"}
+                        </button>
+                      </div>
+                    </div>
+                    <div className="flex gap-3 flex-wrap">
+                      <a href={`/api/monitor/${equipment.monitoring_token}/script`} download
+                        className="text-sm bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700">
+                        Baixar script PowerShell
+                      </a>
+                      <button onClick={handleGenerateToken} disabled={generatingToken}
+                        className="text-sm border border-gray-300 text-gray-600 px-3 py-1.5 rounded-lg hover:bg-gray-50 disabled:opacity-50">
+                        {generatingToken ? "Gerando..." : "Novo token"}
+                      </button>
+                    </div>
+                    <p className="text-xs text-gray-400">
+                      Para instalar como tarefa agendada, execute no PowerShell (administrador):
+                    </p>
+                    <code className="block text-xs bg-gray-100 rounded p-2 font-mono whitespace-pre-wrap break-all">
+{`$action = New-ScheduledTaskAction -Execute "PowerShell.exe" -Argument "-NonInteractive -WindowStyle Hidden -File C:\\infra-desk-agent-${id}.ps1"
+$trigger = New-ScheduledTaskTrigger -RepetitionInterval (New-TimeSpan -Minutes 30) -Once -At (Get-Date)
+Register-ScheduledTask -TaskName "InfraDesk-Monitor" -Action $action -Trigger $trigger -RunLevel Highest`}
+                    </code>
+                  </div>
+                </>
+              ) : (
+                <div className="text-center py-4">
+                  <p className="text-sm text-gray-500 mb-3">Gere um token para ativar o monitoramento neste equipamento.</p>
+                  <button onClick={handleGenerateToken} disabled={generatingToken}
+                    className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50">
+                    {generatingToken ? "Gerando..." : "Ativar monitoramento"}
+                  </button>
                 </div>
               )}
             </div>

@@ -28,6 +28,30 @@ export interface Equipment {
   created_at: string;
   updated_at: string;
   client_name?: string;
+  monitoring_token?: string | null;
+  maintenance_interval_days?: number | null;
+  last_maintenance_date?: string | null;
+}
+
+export interface DiskInfo {
+  drive: string;
+  total_gb: number;
+  free_gb: number;
+  percent: number;
+}
+
+export interface MachineMetric {
+  id: number;
+  equipment_id: number;
+  reported_at: string;
+  is_online: boolean;
+  disk_usage_json: string | null;
+  ram_total_gb: number | null;
+  ram_used_gb: number | null;
+  uptime_hours: number | null;
+  os_version: string | null;
+  hostname: string | null;
+  ip_local: string | null;
 }
 
 export interface EquipmentConfig {
