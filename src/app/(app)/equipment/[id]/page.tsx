@@ -807,28 +807,51 @@ export default function EquipmentDetailPage() {
                   {latestMetric ? (
                     <div className="mb-4">
                       <p className="text-xs text-gray-400 mb-3">
-                        Último reporte: {new Date(latestMetric.reported_at).toLocaleString("pt-BR")}
-                        {latestMetric.hostname && ` — ${latestMetric.hostname}`}
-                        {latestMetric.ip_local && ` (${latestMetric.ip_local})`}
+                        Último reporte: {new Date(latestMetric.reported_at).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}
                       </p>
                       <div className="grid grid-cols-2 gap-3">
+                        {/* IP + Hostname */}
+                        {latestMetric.ip_local && (
+                          <div className="bg-gray-50 rounded-lg p-3">
+                            <p className="text-xs text-gray-500 mb-1">IP local</p>
+                            <p className="text-sm font-medium text-gray-800 font-mono">{latestMetric.ip_local}</p>
+                          </div>
+                        )}
+                        {latestMetric.hostname && (
+                          <div className="bg-gray-50 rounded-lg p-3">
+                            <p className="text-xs text-gray-500 mb-1">Hostname</p>
+                            <p className="text-sm font-medium text-gray-800">{latestMetric.hostname}</p>
+                          </div>
+                        )}
+                        {latestMetric.last_user && (
+                          <div className="bg-gray-50 rounded-lg p-3">
+                            <p className="text-xs text-gray-500 mb-1">Último usuário</p>
+                            <p className="text-sm font-medium text-gray-800">{latestMetric.last_user}</p>
+                          </div>
+                        )}
+                        {/* CPU */}
+                        {latestMetric.cpu_percent != null && (
+                          <div className="bg-gray-50 rounded-lg p-3">
+                            <p className="text-xs text-gray-500 mb-1">CPU</p>
+                            <div className="flex items-center gap-2">
+                              <div className="flex-1 bg-gray-200 rounded-full h-2">
+                                <div className={`h-2 rounded-full ${latestMetric.cpu_percent > 90 ? "bg-red-500" : latestMetric.cpu_percent > 70 ? "bg-orange-400" : "bg-blue-500"}`}
+                                  style={{ width: `${Math.min(100, latestMetric.cpu_percent)}%` }} />
+                              </div>
+                              <span className="text-xs font-medium whitespace-nowrap">{latestMetric.cpu_percent}%</span>
+                            </div>
+                          </div>
+                        )}
                         {/* RAM */}
                         {latestMetric.ram_total_gb != null && (
                           <div className="bg-gray-50 rounded-lg p-3">
                             <p className="text-xs text-gray-500 mb-1">RAM</p>
                             <div className="flex items-center gap-2">
                               <div className="flex-1 bg-gray-200 rounded-full h-2">
-                                <div
-                                  className={`h-2 rounded-full ${
-                                    (latestMetric.ram_used_gb! / latestMetric.ram_total_gb!) * 100 > 90
-                                      ? "bg-red-500" : "bg-blue-500"
-                                  }`}
-                                  style={{ width: `${Math.min(100, (latestMetric.ram_used_gb! / latestMetric.ram_total_gb!) * 100)}%` }}
-                                />
+                                <div className={`h-2 rounded-full ${(latestMetric.ram_used_gb! / latestMetric.ram_total_gb!) * 100 > 90 ? "bg-red-500" : "bg-blue-500"}`}
+                                  style={{ width: `${Math.min(100, (latestMetric.ram_used_gb! / latestMetric.ram_total_gb!) * 100)}%` }} />
                               </div>
-                              <span className="text-xs font-medium whitespace-nowrap">
-                                {latestMetric.ram_used_gb}GB / {latestMetric.ram_total_gb}GB
-                              </span>
+                              <span className="text-xs font-medium whitespace-nowrap">{latestMetric.ram_used_gb}GB / {latestMetric.ram_total_gb}GB</span>
                             </div>
                           </div>
                         )}
@@ -843,6 +866,21 @@ export default function EquipmentDetailPage() {
                             </p>
                           </div>
                         )}
+                        {/* Bateria */}
+                        {latestMetric.battery_percent != null && (
+                          <div className="bg-gray-50 rounded-lg p-3">
+                            <p className="text-xs text-gray-500 mb-1">Bateria</p>
+                            <div className="flex items-center gap-2">
+                              <div className="flex-1 bg-gray-200 rounded-full h-2">
+                                <div className={`h-2 rounded-full ${latestMetric.battery_percent < 20 ? "bg-red-500" : latestMetric.battery_percent < 40 ? "bg-orange-400" : "bg-green-500"}`}
+                                  style={{ width: `${Math.min(100, latestMetric.battery_percent)}%` }} />
+                              </div>
+                              <span className="text-xs font-medium whitespace-nowrap">
+                                {latestMetric.battery_percent}% {latestMetric.battery_plugged ? "⚡" : ""}
+                              </span>
+                            </div>
+                          </div>
+                        )}
                         {/* OS */}
                         {latestMetric.os_version && (
                           <div className="bg-gray-50 rounded-lg p-3 col-span-2">
@@ -850,22 +888,56 @@ export default function EquipmentDetailPage() {
                             <p className="text-sm font-medium text-gray-800">{latestMetric.os_version}</p>
                           </div>
                         )}
+                        {/* Antivírus */}
+                        {latestMetric.antivirus_name && (
+                          <div className={`rounded-lg p-3 col-span-2 ${latestMetric.antivirus_enabled === false ? "bg-red-50 border border-red-200" : "bg-gray-50"}`}>
+                            <p className="text-xs text-gray-500 mb-1">Antivírus</p>
+                            <p className="text-sm font-medium text-gray-800">
+                              {latestMetric.antivirus_name}
+                              <span className={`ml-2 text-xs px-1.5 py-0.5 rounded ${latestMetric.antivirus_enabled ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
+                                {latestMetric.antivirus_enabled ? "Ativo" : "DESATIVADO"}
+                              </span>
+                            </p>
+                          </div>
+                        )}
+                        {/* SMART */}
+                        {latestMetric.smart_status && (
+                          <div className={`rounded-lg p-3 ${latestMetric.smart_status !== "OK" ? "bg-red-50 border border-red-200" : "bg-gray-50"}`}>
+                            <p className="text-xs text-gray-500 mb-1">Saúde do disco (SMART)</p>
+                            <p className={`text-sm font-medium ${latestMetric.smart_status === "OK" ? "text-green-700" : "text-red-700"}`}>
+                              {latestMetric.smart_status}
+                            </p>
+                          </div>
+                        )}
+                        {/* Reboot pendente */}
+                        {latestMetric.pending_reboot && (
+                          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                            <p className="text-xs text-yellow-700 font-medium">Reinicialização pendente</p>
+                            <p className="text-xs text-yellow-600">Windows Update aguardando reboot</p>
+                          </div>
+                        )}
+                        {/* Event Log */}
+                        {latestMetric.event_log_errors != null && latestMetric.event_log_errors > 0 && (
+                          <div className={`rounded-lg p-3 ${latestMetric.event_log_errors > 20 ? "bg-red-50 border border-red-200" : "bg-gray-50"}`}>
+                            <p className="text-xs text-gray-500 mb-1">Erros no Event Log (24h)</p>
+                            <p className={`text-sm font-medium ${latestMetric.event_log_errors > 20 ? "text-red-700" : "text-gray-800"}`}>
+                              {latestMetric.event_log_errors} erros
+                            </p>
+                          </div>
+                        )}
                         {/* Discos */}
                         {latestMetric.disk_usage_json && (() => {
-                          const disks: DiskInfo[] = JSON.parse(latestMetric.disk_usage_json);
+                          const parsed = JSON.parse(latestMetric.disk_usage_json);
+                          const disks: DiskInfo[] = Array.isArray(parsed) ? parsed : [parsed];
                           return disks.map(disk => (
                             <div key={disk.drive} className="bg-gray-50 rounded-lg p-3">
                               <p className="text-xs text-gray-500 mb-1">Disco {disk.drive}</p>
                               <div className="flex items-center gap-2">
                                 <div className="flex-1 bg-gray-200 rounded-full h-2">
-                                  <div
-                                    className={`h-2 rounded-full ${disk.percent >= 95 ? "bg-red-500" : disk.percent >= 85 ? "bg-orange-400" : "bg-green-500"}`}
-                                    style={{ width: `${Math.min(100, disk.percent)}%` }}
-                                  />
+                                  <div className={`h-2 rounded-full ${disk.percent >= 95 ? "bg-red-500" : disk.percent >= 85 ? "bg-orange-400" : "bg-green-500"}`}
+                                    style={{ width: `${Math.min(100, disk.percent)}%` }} />
                                 </div>
-                                <span className="text-xs font-medium whitespace-nowrap">
-                                  {disk.percent}% ({disk.free_gb}GB livres)
-                                </span>
+                                <span className="text-xs font-medium whitespace-nowrap">{disk.percent}% ({disk.free_gb}GB livres)</span>
                               </div>
                             </div>
                           ));
@@ -889,23 +961,27 @@ export default function EquipmentDetailPage() {
                       </div>
                     </div>
                     <div className="flex gap-3 flex-wrap">
-                      <a href={`/api/monitor/${equipment.monitoring_token}/script`} download
+                      <a href={`/api/monitor/${equipment.monitoring_token}/config`} download="config.json"
                         className="text-sm bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700">
-                        Baixar script PowerShell
+                        Baixar config.json
+                      </a>
+                      <a href={`/api/monitor/${equipment.monitoring_token}/script`} download
+                        className="text-sm border border-gray-300 text-gray-600 px-3 py-1.5 rounded-lg hover:bg-gray-50">
+                        Script PowerShell (legado)
                       </a>
                       <button onClick={handleGenerateToken} disabled={generatingToken}
                         className="text-sm border border-gray-300 text-gray-600 px-3 py-1.5 rounded-lg hover:bg-gray-50 disabled:opacity-50">
                         {generatingToken ? "Gerando..." : "Novo token"}
                       </button>
                     </div>
-                    <p className="text-xs text-gray-400">
-                      Para instalar como tarefa agendada, execute no PowerShell (administrador):
-                    </p>
-                    <code className="block text-xs bg-gray-100 rounded p-2 font-mono whitespace-pre-wrap break-all">
-{`$action = New-ScheduledTaskAction -Execute "PowerShell.exe" -Argument "-NonInteractive -WindowStyle Hidden -File C:\\infra-desk-agent-${id}.ps1"
-$trigger = New-ScheduledTaskTrigger -RepetitionInterval (New-TimeSpan -Minutes 30) -Once -At (Get-Date)
-Register-ScheduledTask -TaskName "InfraDesk-Monitor" -Action $action -Trigger $trigger -RunLevel Highest`}
-                    </code>
+                    <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 text-xs text-blue-800 space-y-1">
+                      <p className="font-medium">Como instalar o agente (.exe):</p>
+                      <ol className="list-decimal list-inside space-y-0.5 text-blue-700">
+                        <li>Baixe o <code className="bg-blue-100 px-1 rounded">config.json</code> acima</li>
+                        <li>Coloque <code className="bg-blue-100 px-1 rounded">infra-desk-agent.exe</code> e <code className="bg-blue-100 px-1 rounded">config.json</code> na mesma pasta</li>
+                        <li>Execute <code className="bg-blue-100 px-1 rounded">install.bat</code> como Administrador</li>
+                      </ol>
+                    </div>
                   </div>
                 </>
               ) : (

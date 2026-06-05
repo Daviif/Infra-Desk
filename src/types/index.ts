@@ -48,10 +48,19 @@ export interface MachineMetric {
   disk_usage_json: string | null;
   ram_total_gb: number | null;
   ram_used_gb: number | null;
+  cpu_percent: number | null;
   uptime_hours: number | null;
   os_version: string | null;
   hostname: string | null;
   ip_local: string | null;
+  battery_percent: number | null;
+  battery_plugged: boolean | null;
+  pending_reboot: boolean | null;
+  last_user: string | null;
+  event_log_errors: number | null;
+  antivirus_name: string | null;
+  antivirus_enabled: boolean | null;
+  smart_status: string | null;
 }
 
 export interface EquipmentConfig {

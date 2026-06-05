@@ -67,6 +67,11 @@ function Send-Metrics {
 }
 
 Send-Metrics
+
+# ── Instalar como tarefa agendada (executar como Administrador) ──────────────
+# $action  = New-ScheduledTaskAction -Execute "PowerShell.exe" -Argument "-ExecutionPolicy Bypass -NonInteractive -WindowStyle Hidden -File C:\\infra-desk-agent-${rows[0].id}.ps1"
+# $trigger = New-ScheduledTaskTrigger -RepetitionInterval (New-TimeSpan -Minutes 30) -Once -At (Get-Date)
+# Register-ScheduledTask -TaskName "InfraDesk-Monitor" -Action $action -Trigger $trigger -RunLevel Highest
 `;
 
   return new NextResponse(script, {
