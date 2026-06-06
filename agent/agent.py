@@ -242,9 +242,22 @@ class InfraDeskAgent(win32serviceutil.ServiceFramework):
 
 if __name__ == "__main__":
     if len(sys.argv) == 1:
-        # Iniciado pelo SCM (Service Control Manager)
-        servicemanager.Initialize()
-        servicemanager.PrepareToHostSingle(InfraDeskAgent)
-        servicemanager.StartServiceCtrlDispatcher()
+        # Sem argumentos: tenta dispatcher do SCM; se falhar, mostra uso.
+        try:
+            servicemanager.Initialize()
+            servicemanager.PrepareToHostSingle(InfraDeskAgent)
+            servicemanager.StartServiceCtrlDispatcher()
+        except win32service.error as exc:
+            if exc.winerror == 1063:
+                print(
+                    "Este executável é um serviço Windows.\n"
+                    "Use um dos comandos abaixo:\n"
+                    "  agent.exe install   -> instala o serviço\n"
+                    "  agent.exe start     -> inicia\n"
+                    "  agent.exe stop      -> para\n"
+                    "  agent.exe remove    -> desinstala\n"
+                )
+                sys.exit(1)
+            raise
     else:
         win32serviceutil.HandleCommandLine(InfraDeskAgent)

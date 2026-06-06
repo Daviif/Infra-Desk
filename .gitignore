@@ -13,3 +13,7 @@ data/
 .env.local
 .DS_Store
 *.log
+
+agent/build/
+agent/dist/
+*.exe
