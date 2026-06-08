@@ -17,3 +17,4 @@ data/
 agent/build/
 agent/dist/
 *.exe
+!public/downloads/infra-desk-agent.exe

@@ -1026,6 +1026,10 @@ export default function EquipmentDetailPage() {
                       </div>
                     </div>
                     <div className="flex gap-3 flex-wrap">
+                      <a href="/api/download/agent" download="infra-desk-agent.exe"
+                        className="text-sm bg-green-600 text-white px-3 py-1.5 rounded-lg hover:bg-green-700">
+                        Baixar agente (.exe)
+                      </a>
                       <a href={`/api/monitor/${equipment.monitoring_token}/config`} download="config.json"
                         className="text-sm bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700">
                         Baixar config.json
@@ -1042,9 +1046,9 @@ export default function EquipmentDetailPage() {
                     <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 text-xs text-blue-800 space-y-1">
                       <p className="font-medium">Como instalar o agente (.exe):</p>
                       <ol className="list-decimal list-inside space-y-0.5 text-blue-700">
-                        <li>Baixe o <code className="bg-blue-100 px-1 rounded">config.json</code> acima</li>
-                        <li>Coloque <code className="bg-blue-100 px-1 rounded">infra-desk-agent.exe</code> e <code className="bg-blue-100 px-1 rounded">config.json</code> na mesma pasta</li>
-                        <li>Execute <code className="bg-blue-100 px-1 rounded">install.bat</code> como Administrador</li>
+                        <li>Baixe o <code className="bg-blue-100 px-1 rounded">infra-desk-agent.exe</code> e o <code className="bg-blue-100 px-1 rounded">config.json</code> acima</li>
+                        <li>Coloque os dois arquivos na mesma pasta</li>
+                        <li>Execute <code className="bg-blue-100 px-1 rounded">infra-desk-agent.exe install</code> como Administrador</li>
                       </ol>
                     </div>
                   </div>

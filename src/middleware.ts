@@ -4,7 +4,7 @@ import { jwtVerify } from "jose";
 const COOKIE = "infra-session";
 const secret = new TextEncoder().encode(process.env.AUTH_SECRET ?? "dev-secret-change-me");
 
-const PUBLIC = ["/login", "/api/auth/", "/api/monitor/"];
+const PUBLIC = ["/login", "/api/auth/", "/api/monitor/", "/api/hardware/"];
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;

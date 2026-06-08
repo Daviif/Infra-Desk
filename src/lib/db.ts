@@ -7,10 +7,13 @@ setDefaultResultOrder("ipv4first");
 // max:3 evita estourar o limite de conexões em ambiente serverless (Vercel)
 const connectionString = process.env.DATABASE_URL ?? "";
 const isPooler = connectionString.includes("pooler.supabase.com");
+const isLocal =
+  connectionString.includes("localhost") ||
+  connectionString.includes("127.0.0.1");
 
 const pool = new Pool({
   connectionString,
-  ssl: { rejectUnauthorized: false },
+  ssl: isLocal ? false : { rejectUnauthorized: false },
   max: 3,
   // pgBouncer transaction mode não suporta prepared statements
   ...(isPooler && { statement_timeout: 0 }),
