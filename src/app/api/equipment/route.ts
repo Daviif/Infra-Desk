@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import pool from "@/lib/db";
+import { encrypt, decrypt, isEncrypted } from "@/lib/encryption";
+import { getSession } from "@/lib/auth";
+import { logAudit } from "@/lib/audit";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -18,10 +21,19 @@ export async function GET(req: NextRequest) {
          ORDER BY e.created_at DESC`
       );
 
-  return NextResponse.json(rows);
+  const decrypted = rows.map((r) => ({
+    ...r,
+    remote_access_password:
+      r.remote_access_password && isEncrypted(r.remote_access_password)
+        ? decrypt(r.remote_access_password)
+        : r.remote_access_password,
+  }));
+
+  return NextResponse.json(decrypted);
 }
 
 export async function POST(req: NextRequest) {
+  const session = await getSession(req);
   const body = await req.json();
   const {
     client_id, type, brand, model, serial, ip_address, mac_address,
@@ -43,7 +55,9 @@ export async function POST(req: NextRequest) {
       client_id, type, brand || null, model || null, serial || null,
       ip_address || null, mac_address || null, user_account || null,
       responsible || null, status || "ativo", location || null,
-      remote_access || null, remote_access_password || null, notes || null,
+      remote_access || null,
+      remote_access_password ? encrypt(remote_access_password) : null,
+      notes || null,
     ]
   );
 
@@ -76,5 +90,11 @@ export async function POST(req: NextRequest) {
     [newId]
   );
 
-  return NextResponse.json(equipment[0], { status: 201 });
+  const eq = equipment[0];
+  if (eq?.remote_access_password && isEncrypted(eq.remote_access_password)) {
+    eq.remote_access_password = decrypt(eq.remote_access_password);
+  }
+
+  logAudit("equipment", newId, "criado", session?.name ?? "Sistema");
+  return NextResponse.json(eq, { status: 201 });
 }

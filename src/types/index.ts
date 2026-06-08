@@ -195,6 +195,23 @@ export const EQUIPMENT_CONFIG_TYPES = {
   ],
 } as const;
 
+export interface TicketComment {
+  id: number;
+  ticket_id: number;
+  author: string;
+  body: string;
+  created_at: string;
+}
+
+export interface User {
+  id: number;
+  name: string;
+  username: string;
+  role: "admin" | "tecnico";
+  active: boolean;
+  created_at: string;
+}
+
 export const TICKET_STATUS = {
   aberto: { label: "Aberto", color: "bg-blue-100 text-blue-800" },
   em_andamento: { label: "Em andamento", color: "bg-yellow-100 text-yellow-800" },

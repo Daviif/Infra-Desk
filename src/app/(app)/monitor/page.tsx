@@ -17,6 +17,9 @@ interface MonitoredMachine {
   reported_at: string | null;
   hostname: string | null;
   ip_local: string | null;
+  ip_public: string | null;
+  gateway: string | null;
+  wifi_ssid: string | null;
   cpu_percent: number | null;
   ram_used_gb: number | null;
   ram_total_gb: number | null;
@@ -121,7 +124,7 @@ export default function MonitorPage() {
   ];
 
   return (
-    <div className="p-8">
+    <div className="p-4 md:p-8">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-gray-900">Monitoramento</h1>
         <div className="flex gap-3 text-sm text-gray-500">
@@ -143,8 +146,8 @@ export default function MonitorPage() {
       </div>
 
       {/* Tabs + busca */}
-      <div className="flex items-center justify-between mb-4 gap-4">
-        <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-3">
+        <div className="flex gap-1 bg-gray-100 rounded-lg p-1 flex-wrap">
           {tabs.map((t) => (
             <button
               key={t.key}
@@ -169,7 +172,7 @@ export default function MonitorPage() {
           placeholder="Buscar por hostname, cliente, IP..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm w-72 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm w-full sm:w-72 focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
       </div>
 
@@ -227,7 +230,11 @@ export default function MonitorPage() {
                       )}
                     </div>
                     <div className="flex items-center gap-3 mt-0.5 text-xs text-gray-400 flex-wrap">
-                      {m.ip_local  && <span>{m.ip_local}</span>}
+                      {m.ip_local  && <span title="IP local">{m.ip_local}</span>}
+                      {m.ip_public && m.ip_public !== m.ip_local && (
+                        <span title="IP público" className="text-gray-300">{m.ip_public} ↑</span>
+                      )}
+                      {m.wifi_ssid && <span title="Rede WiFi">📶 {m.wifi_ssid}</span>}
                       {m.os_version && <span>{m.os_version}</span>}
                       {m.last_user && <span>Usuário: {m.last_user}</span>}
                       {m.reported_at && (
@@ -252,7 +259,7 @@ export default function MonitorPage() {
 
                   {/* Métricas rápidas */}
                   {m.has_metric && (
-                    <div className="flex gap-6 text-xs shrink-0">
+                    <div className="hidden sm:flex gap-4 text-xs shrink-0">
                       {m.cpu_percent != null && (
                         <div className="w-20">
                           <p className="text-gray-400 mb-1">CPU</p>

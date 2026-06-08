@@ -1,6 +1,20 @@
 @echo off
-echo === Infra-Desk Monitoring Agent ===
-echo.
+setlocal
+
+:: Verifica se ja esta rodando como administrador
+net session >nul 2>&1
+if %errorLevel% EQU 0 goto :main
+
+:: Nao e admin: solicita UAC e relanca
+set "VBS=%TEMP%\infra-desk-uac.vbs"
+echo Set UAC = CreateObject("Shell.Application") > "%VBS%"
+echo UAC.ShellExecute "%~f0", "", "%~dp0", "runas", 1 >> "%VBS%"
+wscript "%VBS%"
+del /f /q "%VBS%" 2>nul
+exit /b
+
+:main
+cd /d "%~dp0"
 
 if not exist "config.json" (
     echo ERRO: config.json nao encontrado nesta pasta.
@@ -15,14 +29,5 @@ if not exist "infra-desk-agent.exe" (
     exit /b 1
 )
 
-echo Instalando servico...
-infra-desk-agent.exe install
-
-echo Iniciando servico...
-infra-desk-agent.exe start
-
-echo.
-echo Agente instalado e rodando!
-echo Para verificar: services.msc -> "Infra-Desk Monitoring Agent"
-echo Logs em: agent.log (nesta pasta)
-pause
+start "" infra-desk-agent.exe
+echo Agente iniciado! Logs em: agent.log (nesta pasta)

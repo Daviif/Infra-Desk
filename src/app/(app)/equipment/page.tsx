@@ -4,15 +4,22 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Equipment, EQUIPMENT_TYPES, EQUIPMENT_STATUS } from "@/types";
 import StatusBadge from "@/components/StatusBadge";
+import Pagination from "@/components/Pagination";
+
+const LIMIT = 25;
 
 export default function EquipmentPage() {
   const [equipments, setEquipments] = useState<Equipment[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState({ type: "", status: "", client_id: "" });
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
     fetchEquipments();
   }, []);
+
+  // Reset to page 1 when filters change
+  useEffect(() => { setPage(1); }, [filter]);
 
   const fetchEquipments = async () => {
     try {
@@ -32,9 +39,11 @@ export default function EquipmentPage() {
     if (filter.client_id && eq.client_id !== parseInt(filter.client_id)) return false;
     return true;
   });
+  const totalPages = Math.ceil(filteredEquipments.length / LIMIT);
+  const pagedEquipments = filteredEquipments.slice((page - 1) * LIMIT, page * LIMIT);
 
   return (
-    <div className="p-8">
+    <div className="p-4 md:p-8">
           <div className="flex justify-between items-center mb-6">
             <h1 className="text-3xl font-bold text-gray-900">Equipamentos</h1>
             <Link
@@ -46,7 +55,7 @@ export default function EquipmentPage() {
           </div>
 
           <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Tipo
@@ -100,12 +109,13 @@ export default function EquipmentPage() {
             <div className="text-center py-12">
               <p className="text-gray-500">Carregando equipamentos...</p>
             </div>
-          ) : filteredEquipments.length === 0 ? (
+          ) : pagedEquipments.length === 0 ? (
             <div className="bg-white rounded-lg shadow-md p-12 text-center">
               <p className="text-gray-500">Nenhum equipamento encontrado</p>
             </div>
           ) : (
             <div className="bg-white rounded-lg shadow-md overflow-hidden">
+              <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-gray-100 border-b border-gray-200">
                   <tr>
@@ -136,7 +146,7 @@ export default function EquipmentPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredEquipments.map((eq) => (
+                  {pagedEquipments.map((eq) => (
                     <tr
                       key={eq.id}
                       className="border-b border-gray-200 hover:bg-gray-50 transition"
@@ -170,6 +180,8 @@ export default function EquipmentPage() {
                   ))}
                 </tbody>
               </table>
+              </div>
+              <Pagination page={page} totalPages={totalPages} total={filteredEquipments.length} limit={LIMIT} onChange={setPage} />
             </div>
           )}
         </div>

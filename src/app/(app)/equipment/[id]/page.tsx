@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { Equipment, EquipmentDriver, EquipmentConfig, MachineMetric, DiskInfo, EQUIPMENT_TYPES, EQUIPMENT_STATUS, EQUIPMENT_CONFIG_TYPES } from "@/types";
+import AuditLog from "@/components/AuditLog";
 import StatusBadge from "@/components/StatusBadge";
 import Toast from "@/components/Toast";
 
@@ -707,11 +708,11 @@ export default function EquipmentDetailPage() {
               </div>
             </div>
 
-            {availableConfigFields.length > 0 && configs.length > 0 && (
+            {availableConfigFields.length > 0 && configs.filter(c => c.config_type !== "hardware_inventory").length > 0 && (
               <div className="bg-white rounded-lg shadow-md p-6 mb-6">
                 <h2 className="text-base font-semibold text-gray-800 mb-4">Configurações</h2>
                 <div className="space-y-2">
-                  {configs.map(config => (
+                  {configs.filter(c => c.config_type !== "hardware_inventory").map(config => (
                     <div key={config.id} className="flex justify-between items-center bg-gray-50 rounded-lg px-3 py-2">
                       <span className="text-sm text-gray-700">
                         <span className="font-medium">
@@ -724,30 +725,94 @@ export default function EquipmentDetailPage() {
               </div>
             )}
 
-            <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-              <h2 className="text-base font-semibold text-gray-800 mb-4">Drivers</h2>
-              {drivers.length === 0 ? (
-                <p className="text-gray-400 text-sm">Nenhum driver cadastrado.</p>
-              ) : (
-                <div className="space-y-3">
-                  {drivers.map(driver => (
-                    <div key={driver.id} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
-                      <p className="font-medium text-gray-900">{driver.driver_name}</p>
-                      {driver.driver_version && <p className="text-sm text-gray-600">Versão: {driver.driver_version}</p>}
-                      {driver.driver_url && (
-                        <p className="text-sm text-blue-600">
-                          <a href={driver.driver_url} target="_blank" rel="noopener noreferrer">{driver.driver_url}</a>
-                        </p>
-                      )}
-                      {driver.installed_date && (
-                        <p className="text-sm text-gray-600">Instalado em: {new Date(driver.installed_date).toLocaleDateString("pt-BR")}</p>
-                      )}
-                      {driver.notes && <p className="text-sm text-gray-600 mt-1">{driver.notes}</p>}
-                    </div>
-                  ))}
+            {/* ── Hardware detectado pelo agente ── */}
+            {(() => {
+              const hw = configs.filter(c => c.config_type === "hardware_inventory");
+              if (!hw.length) return null;
+              const HW_LABELS: Record<string, string> = {
+                cpu: "Processador", gpu: "Placa de vídeo", ram: "Memória RAM", storage: "Armazenamento",
+              };
+              return (
+                <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+                  <div className="flex items-center gap-2 mb-4">
+                    <h2 className="text-base font-semibold text-gray-800">Hardware</h2>
+                    <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">detectado pelo agente</span>
+                  </div>
+                  <div className="grid grid-cols-1 gap-2">
+                    {["cpu", "gpu", "ram", "storage"].map(key => {
+                      const entry = hw.find(c => c.config_key === key);
+                      if (!entry) return null;
+                      return (
+                        <div key={key} className="flex items-start gap-3 bg-gray-50 rounded-lg px-3 py-2.5">
+                          <span className="text-xs font-medium text-gray-500 w-28 shrink-0 pt-0.5">{HW_LABELS[key] ?? key}</span>
+                          <span className="text-sm text-gray-800">{entry.config_value}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
-              )}
-            </div>
+              );
+            })()}
+
+            {/* ── Drivers ── */}
+            {(() => {
+              const autoDrivers   = drivers.filter(d => d.notes?.startsWith("[auto]"));
+              const manualDrivers = drivers.filter(d => !d.notes?.startsWith("[auto]"));
+              return (
+                <div className="space-y-6 mb-6">
+                  <div className="bg-white rounded-lg shadow-md p-6">
+                    <h2 className="text-base font-semibold text-gray-800 mb-4">Drivers (manuais)</h2>
+                    {manualDrivers.length === 0 ? (
+                      <p className="text-gray-400 text-sm">Nenhum driver cadastrado manualmente.</p>
+                    ) : (
+                      <div className="space-y-3">
+                        {manualDrivers.map(driver => (
+                          <div key={driver.id} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                            <p className="font-medium text-gray-900">{driver.driver_name}</p>
+                            {driver.driver_version && <p className="text-sm text-gray-600">Versão: {driver.driver_version}</p>}
+                            {driver.driver_url && (
+                              <p className="text-sm text-blue-600">
+                                <a href={driver.driver_url} target="_blank" rel="noopener noreferrer">{driver.driver_url}</a>
+                              </p>
+                            )}
+                            {driver.installed_date && (
+                              <p className="text-sm text-gray-600">Instalado em: {new Date(driver.installed_date).toLocaleDateString("pt-BR")}</p>
+                            )}
+                            {driver.notes && <p className="text-sm text-gray-600 mt-1">{driver.notes}</p>}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {autoDrivers.length > 0 && (
+                    <div className="bg-white rounded-lg shadow-md p-6">
+                      <div className="flex items-center gap-2 mb-4">
+                        <h2 className="text-base font-semibold text-gray-800">Drivers instalados</h2>
+                        <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">detectados pelo agente</span>
+                      </div>
+                      <div className="space-y-1 max-h-72 overflow-y-auto">
+                        {autoDrivers.map(driver => (
+                          <div key={driver.id} className="flex items-center justify-between px-3 py-1.5 rounded-lg hover:bg-gray-50">
+                            <div>
+                              <span className="text-sm text-gray-800">{driver.driver_name}</span>
+                              {driver.driver_version && (
+                                <span className="text-xs text-gray-400 ml-2">v{driver.driver_version}</span>
+                              )}
+                            </div>
+                            {driver.installed_date && (
+                              <span className="text-xs text-gray-400 shrink-0 ml-4">
+                                {new Date(driver.installed_date).toLocaleDateString("pt-BR")}
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* ── Manutenção preventiva ── */}
             <div className="bg-white rounded-lg shadow-md p-6 mb-6">
@@ -997,6 +1062,12 @@ export default function EquipmentDetailPage() {
           </>
         )}
       </div>
+
+      {equipment && (
+        <div className="mt-6 px-1">
+          <AuditLog entityType="equipment" entityId={equipment.id} />
+        </div>
+      )}
     </div>
   );
 }

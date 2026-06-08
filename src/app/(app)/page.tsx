@@ -66,6 +66,7 @@ export default async function Dashboard() {
         <div className="mb-8">
           <h2 className="text-lg font-semibold text-gray-800 mb-3">Manutenção preventiva</h2>
           <div className="bg-white rounded-xl border border-orange-200 overflow-hidden">
+            <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-orange-50 border-b border-orange-100">
                 <tr>
@@ -102,6 +103,7 @@ export default async function Dashboard() {
                 })}
               </tbody>
             </table>
+            </div>
           </div>
         </div>
       )}
@@ -120,6 +122,7 @@ export default async function Dashboard() {
         </div>
       ) : (
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
@@ -142,6 +145,7 @@ export default async function Dashboard() {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
     </div>

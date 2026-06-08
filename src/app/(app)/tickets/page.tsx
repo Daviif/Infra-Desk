@@ -1,30 +1,48 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import StatusBadge from "@/components/StatusBadge";
+import Pagination from "@/components/Pagination";
 import { Ticket } from "@/types";
-import { Suspense } from "react";
+
+const LIMIT = 25;
 
 function TicketList() {
   const searchParams = useSearchParams();
   const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [page, setPage] = useState(1);
   const [status, setStatus] = useState(searchParams.get("status") ?? "");
-  const [filter, setFilter] = useState("");
+  const [q, setQ] = useState("");
+  const [debouncedQ, setDebouncedQ] = useState("");
+  const [loading, setLoading] = useState(false);
 
+  // Debounce search input — wait 350ms before hitting the API
   useEffect(() => {
-    const url = status ? `/api/tickets?status=${status}&limit=200` : "/api/tickets?limit=200";
-    fetch(url).then((r) => r.json()).then(setTickets);
-  }, [status]);
+    const t = setTimeout(() => setDebouncedQ(q), 350);
+    return () => clearTimeout(t);
+  }, [q]);
 
-  const filtered = tickets.filter(
-    (t) =>
-      t.problem.toLowerCase().includes(filter.toLowerCase()) ||
-      (t.solution ?? "").toLowerCase().includes(filter.toLowerCase()) ||
-      (t.client_name ?? "").toLowerCase().includes(filter.toLowerCase()) ||
-      (t.tags ?? "").toLowerCase().includes(filter.toLowerCase())
-  );
+  // Reset to page 1 whenever filters change
+  useEffect(() => { setPage(1); }, [status, debouncedQ]);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const params = new URLSearchParams({ page: String(page), limit: String(LIMIT) });
+    if (status) params.set("status", status);
+    if (debouncedQ) params.set("q", debouncedQ);
+    const res = await fetch(`/api/tickets?${params}`);
+    const data = await res.json();
+    setTickets(data.rows);
+    setTotal(data.total);
+    setTotalPages(data.totalPages);
+    setLoading(false);
+  }, [page, status, debouncedQ]);
+
+  useEffect(() => { load(); }, [load]);
 
   return (
     <div className="max-w-5xl">
@@ -36,12 +54,12 @@ function TicketList() {
         </Link>
       </div>
 
-      <div className="flex gap-3 mb-4">
+      <div className="flex flex-col sm:flex-row gap-2 mb-4">
         <input
           type="text"
-          placeholder="Filtrar por problema, solução, cliente ou tag..."
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
+          placeholder="Buscar por problema, cliente, técnico ou tag..."
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
           className="flex-1 border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
         <select value={status} onChange={(e) => setStatus(e.target.value)}
@@ -53,19 +71,21 @@ function TicketList() {
         </select>
       </div>
 
-      {filtered.length === 0 ? (
+      {loading ? (
+        <div className="bg-white rounded-xl border border-gray-200 p-10 text-center text-gray-400 text-sm">
+          Carregando...
+        </div>
+      ) : tickets.length === 0 ? (
         <div className="bg-white rounded-xl border border-gray-200 p-10 text-center text-gray-400">
-          {tickets.length === 0 ? (
-            <>
-              Nenhum chamado ainda.{" "}
-              <Link href="/tickets/new" className="text-blue-600 hover:underline">Criar o primeiro</Link>
-            </>
+          {total === 0 && !q && !status ? (
+            <>Nenhum chamado ainda. <Link href="/tickets/new" className="text-blue-600 hover:underline">Criar o primeiro</Link></>
           ) : (
             "Nenhum resultado para o filtro."
           )}
         </div>
       ) : (
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
@@ -77,7 +97,7 @@ function TicketList() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {filtered.map((t) => (
+              {tickets.map((t) => (
                 <tr key={t.id} className="hover:bg-gray-50">
                   <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{t.date}</td>
                   <td className="px-4 py-3 text-gray-700">
@@ -104,6 +124,8 @@ function TicketList() {
               ))}
             </tbody>
           </table>
+          </div>
+          <Pagination page={page} totalPages={totalPages} total={total} limit={LIMIT} onChange={setPage} />
         </div>
       )}
     </div>

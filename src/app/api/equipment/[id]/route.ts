@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import pool from "@/lib/db";
 import { randomUUID } from "crypto";
+import { encrypt, decrypt, isEncrypted } from "@/lib/encryption";
+import { getSession } from "@/lib/auth";
+import { logAudit, diffEquipment } from "@/lib/audit";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -22,10 +25,16 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     pool.query("SELECT * FROM machine_metrics WHERE equipment_id = $1 ORDER BY reported_at DESC LIMIT 1", [id]),
   ]);
 
-  return NextResponse.json({ ...equipRows[0], configs, drivers, latest_metric: metrics[0] ?? null });
+  const eq = equipRows[0];
+  if (eq?.remote_access_password && isEncrypted(eq.remote_access_password)) {
+    eq.remote_access_password = decrypt(eq.remote_access_password);
+  }
+
+  return NextResponse.json({ ...eq, configs, drivers, latest_metric: metrics[0] ?? null });
 }
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const session = await getSession(req);
   const { id } = await params;
   const body = await req.json();
   const {
@@ -38,6 +47,12 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   if (!type) {
     return NextResponse.json({ error: "type é obrigatório" }, { status: 400 });
   }
+
+  const { rows: beforeRows } = await pool.query(
+    "SELECT type,brand,model,serial,ip_address,mac_address,user_account,responsible,status,location,remote_access,notes,maintenance_interval_days,last_maintenance_date FROM equipment WHERE id=$1",
+    [id]
+  );
+  const before = beforeRows[0] ?? {};
 
   // Gera novo token se solicitado ou se ainda não tem
   if (generate_token) {
@@ -55,7 +70,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       type, brand || null, model || null, serial || null,
       ip_address || null, mac_address || null, user_account || null,
       responsible || null, status || "ativo", location || null,
-      remote_access || null, remote_access_password || null, notes || null,
+      remote_access || null,
+      remote_access_password ? encrypt(remote_access_password) : null,
+      notes || null,
       maintenance_interval_days || null,
       last_maintenance_date || null,
       id,
@@ -63,7 +80,11 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   );
 
   if (configs && Array.isArray(configs)) {
-    await pool.query("DELETE FROM equipment_configs WHERE equipment_id = $1", [id]);
+    // Preserva hardware_inventory — gerenciado exclusivamente pelo agente
+    await pool.query(
+      "DELETE FROM equipment_configs WHERE equipment_id = $1 AND config_type != 'hardware_inventory'",
+      [id],
+    );
     for (const config of configs) {
       await pool.query(
         `INSERT INTO equipment_configs (equipment_id, config_type, config_key, config_value)
@@ -102,11 +123,22 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     pool.query("SELECT * FROM equipment_drivers WHERE equipment_id = $1 ORDER BY installed_date DESC", [id]),
   ]);
 
-  return NextResponse.json(equipRows[0] ? { ...equipRows[0], configs: updatedConfigs, drivers: updatedDrivers } : null);
+  const updated = equipRows[0];
+  if (updated?.remote_access_password && isEncrypted(updated.remote_access_password)) {
+    updated.remote_access_password = decrypt(updated.remote_access_password);
+  }
+
+  const after = { type, brand: brand||null, model: model||null, serial: serial||null, ip_address: ip_address||null, mac_address: mac_address||null, user_account: user_account||null, responsible: responsible||null, status: status||"ativo", location: location||null, remote_access: remote_access||null, notes: notes||null, maintenance_interval_days: maintenance_interval_days||null, last_maintenance_date: last_maintenance_date||null };
+  const changes = diffEquipment(before, after);
+  if (changes.length > 0) logAudit("equipment", Number(id), "atualizado", session?.name ?? "Sistema", changes);
+
+  return NextResponse.json(updated ? { ...updated, configs: updatedConfigs, drivers: updatedDrivers } : null);
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const session = await getSession(req);
   const { id } = await params;
+  logAudit("equipment", Number(id), "excluído", session?.name ?? "Sistema");
   await pool.query("DELETE FROM equipment_drivers WHERE equipment_id = $1", [id]);
   await pool.query("DELETE FROM equipment_configs WHERE equipment_id = $1", [id]);
   await pool.query("DELETE FROM equipment WHERE id = $1", [id]);

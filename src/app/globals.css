@@ -5,3 +5,98 @@
 * {
   box-sizing: border-box;
 }
+
+/* ─── Dark mode global overrides ────────────────────────────────────────────
+   Overriding Tailwind utility classes under `.dark` means we don't have to
+   add dark: variants to every single component. One place, full coverage.
+   ──────────────────────────────────────────────────────────────────────── */
+
+/* Base */
+.dark body {
+  background-color: #111827; /* gray-900 */
+  color: #f9fafb;            /* gray-50  */
+}
+
+/* Backgrounds */
+.dark .bg-white          { background-color: #1f2937; } /* gray-800 */
+.dark .bg-gray-50        { background-color: #111827; } /* gray-900 */
+.dark .bg-gray-100       { background-color: #374151; } /* gray-700 */
+
+/* Text */
+.dark .text-gray-900     { color: #f9fafb;   }
+.dark .text-gray-800     { color: #f3f4f6;   }
+.dark .text-gray-700     { color: #d1d5db;   }
+.dark .text-gray-600     { color: #9ca3af;   }
+.dark .text-gray-500     { color: #9ca3af;   }
+.dark .text-blue-600     { color: #60a5fa;   } /* links brighter in dark */
+
+/* Borders */
+.dark .border-gray-100   { border-color: #374151; }
+.dark .border-gray-200   { border-color: #374151; }
+.dark .border-gray-300   { border-color: #4b5563; }
+
+/* Table row dividers */
+.dark .divide-gray-100 > :not([hidden]) ~ :not([hidden]),
+.dark .divide-gray-200 > :not([hidden]) ~ :not([hidden]) {
+  border-color: #374151;
+}
+
+/* Hover states */
+.dark .hover\:bg-gray-50:hover  { background-color: #374151; }
+.dark .hover\:bg-gray-100:hover { background-color: #4b5563; }
+.dark .hover\:bg-gray-700:hover { background-color: #374151; }
+
+/* Form elements */
+.dark input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+.dark select,
+.dark textarea {
+  background-color: #374151;
+  color: #f9fafb;
+}
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: #9ca3af;
+}
+.dark select option {
+  background-color: #374151;
+}
+
+/* Status / alert badge backgrounds */
+.dark .bg-green-50       { background-color: rgba(6,  78,  59, 0.35); }
+.dark .bg-green-100      { background-color: #064e3b; }
+.dark .text-green-700    { color: #6ee7b7; }
+.dark .text-green-800    { color: #6ee7b7; }
+.dark .border-green-200  { border-color: #065f46; }
+
+.dark .bg-blue-50        { background-color: rgba(30, 58, 138, 0.35); }
+.dark .bg-blue-100       { background-color: #1e3a5f; }
+.dark .text-blue-700     { color: #93c5fd; }
+.dark .text-blue-800     { color: #93c5fd; }
+.dark .border-blue-100   { border-color: #1e3a5f; }
+.dark .border-blue-200   { border-color: #1e40af; }
+
+.dark .bg-yellow-100     { background-color: #713f12; }
+.dark .text-yellow-700   { color: #fde68a; }
+.dark .text-yellow-800   { color: #fde68a; }
+
+.dark .bg-red-50         { background-color: rgba(127, 29, 29, 0.35); }
+.dark .bg-red-100        { background-color: #7f1d1d; }
+.dark .text-red-600      { color: #f87171; }
+.dark .text-red-700      { color: #fca5a5; }
+.dark .text-red-800      { color: #fca5a5; }
+.dark .border-red-200    { border-color: #991b1b; }
+
+.dark .bg-orange-100     { background-color: #7c2d12; }
+.dark .text-orange-800   { color: #fdba74; }
+
+.dark .bg-purple-100     { background-color: #4c1d95; }
+.dark .text-purple-800   { color: #c4b5fd; }
+
+/* Shadow (lighten in dark) */
+.dark .shadow-sm         { box-shadow: 0 1px 2px 0 rgba(0,0,0,.4); }
+.dark .shadow-md         { box-shadow: 0 4px 6px -1px rgba(0,0,0,.5); }
+.dark .shadow-lg         { box-shadow: 0 10px 15px -3px rgba(0,0,0,.6); }
+.dark .shadow-xl         { box-shadow: 0 20px 25px -5px rgba(0,0,0,.7); }
+
+/* Focus ring stays blue */
+.dark .focus\:ring-blue-500:focus { --tw-ring-color: #3b82f6; }

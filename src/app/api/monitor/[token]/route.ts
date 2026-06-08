@@ -41,8 +41,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
   const eq   = equip[0];
   const body = await req.json();
   const {
-    hostname, os_version, ip_local, uptime_hours,
-    ram_total_gb, ram_used_gb, cpu_percent, disks,
+    hostname, os_version, ip_local, ip_public, gateway, wifi_ssid,
+    uptime_hours, ram_total_gb, ram_used_gb, cpu_percent, disks,
     battery_percent, battery_plugged,
     pending_reboot, last_user, event_log_errors,
     antivirus_name, antivirus_enabled, smart_status,
@@ -65,15 +65,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
     `INSERT INTO machine_metrics (
        equipment_id, is_online, disk_usage_json,
        ram_total_gb, ram_used_gb, cpu_percent,
-       uptime_hours, os_version, hostname, ip_local,
+       uptime_hours, os_version, hostname, ip_local, ip_public, gateway, wifi_ssid,
        battery_percent, battery_plugged, pending_reboot,
        last_user, event_log_errors,
        antivirus_name, antivirus_enabled, smart_status
-     ) VALUES ($1,true,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`,
+     ) VALUES ($1,true,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)`,
     [
       eq.id, disk_usage_json,
       ram_total_gb ?? null, ram_used_gb ?? null, cpu_percent ?? null,
-      uptime_hours ?? null, os_version ?? null, hostname ?? null, ip_local ?? null,
+      uptime_hours ?? null, os_version ?? null, hostname ?? null,
+      ip_local ?? null, ip_public ?? null, gateway ?? null, wifi_ssid ?? null,
       battery_percent ?? null, battery_plugged ?? null, pending_reboot ?? null,
       last_user ?? null, event_log_errors ?? null,
       antivirus_name ?? null, antivirus_enabled ?? null, smart_status ?? null,

@@ -4,7 +4,9 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import StatusBadge from "@/components/StatusBadge";
-import { Ticket, Client, Equipment } from "@/types";
+import { Ticket, Client, Equipment, TicketComment } from "@/types";
+import { SessionUser } from "@/lib/auth";
+import AuditLog from "@/components/AuditLog";
 import { generateTags } from "@/lib/tags";
 
 export default function TicketDetailPage() {
@@ -26,6 +28,10 @@ export default function TicketDetailPage() {
   });
   const [autoTags, setAutoTags] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+  const [comments, setComments] = useState<TicketComment[]>([]);
+  const [commentBody, setCommentBody] = useState("");
+  const [postingComment, setPostingComment] = useState(false);
+  const [currentUser, setCurrentUser] = useState<SessionUser | null>(null);
 
   async function load() {
     const res = await fetch(`/api/tickets/${id}`);
@@ -44,9 +50,16 @@ export default function TicketDetailPage() {
     setAutoTags(data.tags ? data.tags.split(",").map((t: string) => t.trim()).filter(Boolean) : []);
   }
 
+  async function loadComments() {
+    const res = await fetch(`/api/tickets/${id}/comments`);
+    if (res.ok) setComments(await res.json());
+  }
+
   useEffect(() => {
     load();
+    loadComments();
     fetch("/api/clients").then((r) => r.json()).then(setClients);
+    fetch("/api/auth/me").then((r) => r.ok ? r.json() : null).then(setCurrentUser);
   }, [id]);
 
   // Load equipment when client changes in edit mode
@@ -83,6 +96,39 @@ export default function TicketDetailPage() {
     await load();
     setEditing(false);
     setSaving(false);
+  }
+
+  async function postComment(e: React.FormEvent) {
+    e.preventDefault();
+    if (!commentBody.trim()) return;
+    setPostingComment(true);
+    const res = await fetch(`/api/tickets/${id}/comments`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ body: commentBody }),
+    });
+    if (res.ok) {
+      setCommentBody("");
+      await loadComments();
+    }
+    setPostingComment(false);
+  }
+
+  async function deleteComment(commentId: number) {
+    if (!confirm("Excluir comentário?")) return;
+    await fetch(`/api/tickets/${id}/comments/${commentId}`, { method: "DELETE" });
+    await loadComments();
+  }
+
+  function formatRelativeTime(iso: string) {
+    const diff = Date.now() - new Date(iso).getTime();
+    const min = Math.floor(diff / 60000);
+    if (min < 1) return "agora mesmo";
+    if (min < 60) return `há ${min}min`;
+    const h = Math.floor(min / 60);
+    if (h < 24) return `há ${h}h`;
+    const d = Math.floor(h / 24);
+    return `há ${d}d`;
   }
 
   async function deleteTicket() {
@@ -283,6 +329,66 @@ export default function TicketDetailPage() {
           </div>
         </div>
       )}
+
+      {ticket && <AuditLog entityType="ticket" entityId={ticket.id} />}
+
+      {/* Comments section — always visible below the ticket card */}
+      <div className="mt-6">
+        <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
+          Comentários {comments.length > 0 && <span className="text-gray-400 font-normal normal-case">({comments.length})</span>}
+        </h2>
+
+        {comments.length > 0 && (
+          <div className="space-y-3 mb-4">
+            {comments.map((c) => {
+              const isOwn = currentUser?.name === c.author;
+              const canDelete = isOwn || currentUser?.role === "admin";
+              return (
+                <div key={c.id} className="bg-white border border-gray-200 rounded-xl px-4 py-3">
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium text-gray-900">{c.author}</span>
+                      {isOwn && (
+                        <span className="text-xs bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded">você</span>
+                      )}
+                      <span className="text-xs text-gray-400">{formatRelativeTime(c.created_at)}</span>
+                    </div>
+                    {canDelete && (
+                      <button
+                        onClick={() => deleteComment(c.id)}
+                        className="text-xs text-gray-300 hover:text-red-500 transition-colors"
+                        title="Excluir comentário"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+                  <p className="text-sm text-gray-700 whitespace-pre-wrap">{c.body}</p>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        <form onSubmit={postComment} className="bg-white border border-gray-200 rounded-xl p-4">
+          <textarea
+            value={commentBody}
+            onChange={(e) => setCommentBody(e.target.value)}
+            placeholder="Adicionar comentário..."
+            rows={3}
+            className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+          />
+          <div className="flex justify-end mt-2">
+            <button
+              type="submit"
+              disabled={postingComment || !commentBody.trim()}
+              className="bg-blue-600 text-white text-sm px-4 py-1.5 rounded-lg hover:bg-blue-700 disabled:opacity-40 transition-colors"
+            >
+              {postingComment ? "Enviando..." : "Comentar"}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }

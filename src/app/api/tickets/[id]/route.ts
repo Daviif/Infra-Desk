@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import pool from "@/lib/db";
+import { getSession } from "@/lib/auth";
+import { logAudit, diffTicket } from "@/lib/audit";
 
 const TICKET_SELECT = `
   SELECT t.*, c.name as client_name,
@@ -29,6 +31,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 }
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const session = await getSession(req);
   const { id } = await params;
   const body = await req.json();
   const { client_id, equipment_id, date, problem, solution, status, technician, tags } = body;
@@ -37,15 +40,15 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     return NextResponse.json({ error: "date e problem são obrigatórios" }, { status: 400 });
   }
 
+  const { rows: beforeRows } = await pool.query(
+    "SELECT status, problem, solution, technician, tags, client_id, equipment_id, date, created_at, time_spent FROM tickets WHERE id = $1",
+    [id]
+  );
+  const before = beforeRows[0] ?? {};
+
   let time_spent: string | null = null;
   if (status === "resolvido") {
-    const { rows: existing } = await pool.query(
-      "SELECT created_at, status, time_spent FROM tickets WHERE id = $1",
-      [id]
-    );
-    if (existing[0]) {
-      time_spent = existing[0].time_spent || formatElapsed(existing[0].created_at);
-    }
+    time_spent = before.time_spent || formatElapsed(before.created_at);
   }
 
   await pool.query(
@@ -58,11 +61,16 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   );
 
   const { rows } = await pool.query(TICKET_SELECT + " WHERE t.id = $1", [id]);
+  const after = { status, problem: problem.trim(), solution: solution || null, technician: technician || null, tags: tags || null, client_id: client_id || null, equipment_id: equipment_id || null, date };
+  const changes = diffTicket(before, after);
+  if (changes.length > 0) logAudit("ticket", Number(id), "atualizado", session?.name ?? "Sistema", changes);
   return NextResponse.json(rows[0]);
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const session = await getSession(req);
   const { id } = await params;
+  logAudit("ticket", Number(id), "excluído", session?.name ?? "Sistema");
   await pool.query("DELETE FROM tickets WHERE id = $1", [id]);
   return NextResponse.json({ ok: true });
 }

@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import Pagination from "@/components/Pagination";
+
+const LIMIT = 30;
 
 interface ClientRow {
   id: number;
@@ -15,6 +18,7 @@ interface ClientRow {
 export default function ClientsPage() {
   const [clients, setClients] = useState<ClientRow[]>([]);
   const [filter, setFilter] = useState("");
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
     fetch("/api/clients")
@@ -22,12 +26,17 @@ export default function ClientsPage() {
       .then(setClients);
   }, []);
 
+  // Reset page when filter changes
+  useEffect(() => { setPage(1); }, [filter]);
+
   const filtered = clients.filter(
     (c) =>
       c.name.toLowerCase().includes(filter.toLowerCase()) ||
       (c.city ?? "").toLowerCase().includes(filter.toLowerCase()) ||
       (c.contact ?? "").toLowerCase().includes(filter.toLowerCase())
   );
+  const totalPages = Math.ceil(filtered.length / LIMIT);
+  const paginated = filtered.slice((page - 1) * LIMIT, page * LIMIT);
 
   return (
     <div className="max-w-4xl">
@@ -49,7 +58,7 @@ export default function ClientsPage() {
         className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
       />
 
-      {filtered.length === 0 ? (
+      {paginated.length === 0 ? (
         <div className="bg-white rounded-xl border border-gray-200 p-10 text-center text-gray-400">
           {clients.length === 0 ? (
             <>
@@ -64,6 +73,7 @@ export default function ClientsPage() {
         </div>
       ) : (
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
@@ -75,7 +85,7 @@ export default function ClientsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {filtered.map((c) => (
+              {paginated.map((c) => (
                 <tr key={c.id} className="hover:bg-gray-50">
                   <td className="px-4 py-3 font-medium">
                     <Link href={`/clients/${c.id}`} className="text-blue-600 hover:underline">
@@ -98,6 +108,8 @@ export default function ClientsPage() {
               ))}
             </tbody>
           </table>
+          </div>
+          <Pagination page={page} totalPages={totalPages} total={filtered.length} limit={LIMIT} onChange={setPage} />
         </div>
       )}
     </div>
