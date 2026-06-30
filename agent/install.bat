@@ -29,5 +29,12 @@ if not exist "infra-desk-agent.exe" (
     exit /b 1
 )
 
-start "" infra-desk-agent.exe
-echo Agente iniciado! Logs em: agent.log (nesta pasta)
+infra-desk-agent.exe install
+if errorlevel 1 (
+    echo ERRO: falha ao instalar o servico do Windows.
+    pause
+    exit /b 1
+)
+
+echo Agente instalado como servico do Windows (inicio automatico).
+echo Logs em: agent.log (nesta pasta)

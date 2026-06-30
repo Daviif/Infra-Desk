@@ -465,4 +465,36 @@ if __name__ == "__main__":
             time.sleep(interval)
     else:
         # Modo serviço Windows (opcional): install / start / stop / remove
-        win32serviceutil.HandleCommandLine(InfraDeskAgent)
+        is_install = sys.argv[1].lower() == "install"
+
+        argv = sys.argv
+        if is_install:
+            # pywin32 registra o serviço com início Manual por padrão, o que
+            # faz o agente NUNCA voltar a rodar depois de um reboot (ex.: reboot
+            # de atualização do Windows) até alguém iniciá-lo manualmente.
+            # Forçamos início Automático para sobreviver a reinicializações.
+            argv = [sys.argv[0], "--startup", "auto"] + sys.argv[1:]
+
+        win32serviceutil.HandleCommandLine(InfraDeskAgent, argv=argv)
+
+        if is_install:
+            try:
+                win32serviceutil.StartService(InfraDeskAgent._svc_name_)
+                logging.info("Serviço iniciado após instalação.")
+            except Exception as exc:
+                logging.error("Falha ao iniciar serviço após instalação: %s", exc)
+
+            try:
+                # Reinicia o serviço automaticamente se o processo morrer
+                # inesperadamente (3 tentativas, 1 min entre elas, reseta
+                # contador de falhas após 24h sem falhas).
+                subprocess.call(
+                    [
+                        "sc", "failure", InfraDeskAgent._svc_name_,
+                        "reset=", "86400",
+                        "actions=", "restart/60000/restart/60000/restart/60000",
+                    ],
+                    creationflags=0x08000000,  # CREATE_NO_WINDOW
+                )
+            except Exception as exc:
+                logging.error("Falha ao configurar recuperação automática do serviço: %s", exc)
